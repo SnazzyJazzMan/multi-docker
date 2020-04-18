@@ -1,0 +1,51 @@
+version: '3'
+services:
+  postgres: #<-- this is name of service we define
+    image: 'postgres:latest'
+    environment:
+      - POSTGRES_PASSWORD=example
+  redis:
+    image: 'redis:latest'
+  nginx:
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - '3050:80'
+  api:
+    depends_on:
+      - postgres
+      - redis
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes:
+      - /app/node_modules # /app points to WORKDIR in Dockerfile. "Reserving" node_modules from being copied
+      - ./server:/app # copying the contents of ./server into WORKDIR
+    environment:
+      - REDIS_HOST=redis #redis refers back to the redis service we made
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=example
+      - PGPORT=5432
+  client:
+    stdin_open: true
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
